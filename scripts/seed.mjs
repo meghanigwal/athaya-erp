@@ -16,6 +16,7 @@ const DB_PATH = path.join(DATA_DIR, "athaya.db");
 const SCHEMA_PATH = path.join(ROOT, "src", "lib", "schema.sql");
 
 const RESET = process.argv.includes("--reset");
+const ACCOUNTS_ONLY = process.argv.includes("--accounts-only") || process.env.SEED_ACCOUNTS_ONLY === "1";
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (RESET) {
@@ -72,6 +73,20 @@ const ownerId = insertUser("Vaibhav Sahrawat", "owner@athayafootball.com", owner
 const adminId = insertUser("Priya Menon", "admin@athayafootball.com", adminPassword, "ADMIN", "9810000002");
 const emp1Id = insertUser("Rahul Verma", "rahul@athayafootball.com", employeePassword, "EMPLOYEE", "9810000003");
 const emp2Id = insertUser("Sneha Kapoor", "sneha@athayafootball.com", employeePassword, "EMPLOYEE", "9810000004");
+
+if (ACCOUNTS_ONLY) {
+  console.log("ACCOUNTS_ONLY mode: created login accounts only, no sample business data.");
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+  db.close();
+  console.log("Seed complete.");
+  console.log("");
+  console.log("Login credentials:");
+  console.log(`  Super Admin: owner@athayafootball.com / ${ownerPassword}`);
+  console.log(`  Admin:       admin@athayafootball.com / ${adminPassword}`);
+  console.log(`  Employee:    rahul@athayafootball.com / ${employeePassword}`);
+  console.log(`  Employee:    sneha@athayafootball.com / ${employeePassword}`);
+  process.exit(0);
+}
 
 // ---------- Centres ----------
 function insertCentre(name, address, city) {
