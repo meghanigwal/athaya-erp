@@ -175,6 +175,12 @@ export function updatePlayer(id: string, input: Partial<PlayerInput>): Player {
   return getPlayer(id)!;
 }
 
+/** Permanently deletes a player. Their payment history is removed along with them (ON DELETE CASCADE). */
+export function deletePlayer(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM players WHERE id = ?`).run(id);
+}
+
 // ---------- Payments / Fee tracking ----------
 
 export function listPaymentsForPlayer(playerId: string): Payment[] {

@@ -92,6 +92,16 @@ export function updateBatch(
   return getBatch(id)!;
 }
 
+export function deleteCentre(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM centres WHERE id = ?`).run(id);
+}
+
+export function deleteBatch(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM batches WHERE id = ?`).run(id);
+}
+
 export function centreStats() {
   const db = getDb();
   return db

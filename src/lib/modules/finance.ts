@@ -105,6 +105,11 @@ export function createTransaction(input: TransactionInput): Transaction {
   return getTransaction(id)!;
 }
 
+export function deleteTransaction(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM transactions WHERE id = ?`).run(id);
+}
+
 export function financialSummary(from?: string, to?: string) {
   const db = getDb();
   const f = from ?? startOfMonthIso();

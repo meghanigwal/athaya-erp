@@ -76,6 +76,11 @@ export function updateCoach(id: string, input: Partial<CoachInput & { employment
   return getCoach(id)!;
 }
 
+export function deleteCoach(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM coaches WHERE id = ?`).run(id);
+}
+
 export function coachStats(id: string) {
   const db = getDb();
   const players = db

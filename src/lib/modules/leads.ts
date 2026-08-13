@@ -155,6 +155,11 @@ export function updateLead(id: string, input: Partial<LeadInput>): Lead {
   return getLead(id)!;
 }
 
+export function deleteLead(id: string) {
+  const db = getDb();
+  db.prepare(`DELETE FROM leads WHERE id = ?`).run(id);
+}
+
 export function leadStats() {
   const db = getDb();
   const total = db.prepare(`SELECT COUNT(*) as n FROM leads`).get() as { n: number };
