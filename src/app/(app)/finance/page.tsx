@@ -1,9 +1,11 @@
-import { can } from "@/lib/auth";
+import { can, canDeleteRecords } from "@/lib/auth";
 import { listTransactions, financialSummary } from "@/lib/modules/finance";
 import { listCentres } from "@/lib/modules/centres";
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS, REVENUE_CATEGORIES } from "@/lib/types";
 import { PageHeader, LinkButton, Card, Table, Th, Td, Badge, EmptyState, StatCard, Select, Input, Button } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/DeleteButton";
 import { Forbidden } from "@/components/Forbidden";
+import { deleteTransactionAction } from "./actions";
 import { formatCurrency, formatDate, startOfMonthIso, endOfMonthIso } from "@/lib/utils";
 import { Plus, Download } from "lucide-react";
 
@@ -28,6 +30,7 @@ export default async function FinancePage({
   const centres = listCentres();
   const canAdd = await can("finance", "add");
   const canExport = await can("finance", "export");
+  const canDelete = await canDeleteRecords();
 
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => v && qs.set(k, v));
@@ -135,6 +138,7 @@ export default async function FinancePage({
                 <Th>Method</Th>
                 <Th>Centre</Th>
                 <Th>Added By</Th>
+                {canDelete && <Th></Th>}
               </tr>
             </thead>
             <tbody>
@@ -154,6 +158,21 @@ export default async function FinancePage({
                   <Td>{t.payment_method.replaceAll("_", " ")}</Td>
                   <Td>{t.centre_name ?? "-"}</Td>
                   <Td>{t.added_by_name ?? "-"}</Td>
+                  {canDelete && (
+                    <Td>
+                      <form action={deleteTransactionAction}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <ConfirmSubmitButton
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 py-0"
+                          confirmMessage={`Permanently delete transaction ${t.code} (${formatCurrency(t.amount)})? This cannot be undone.`}
+                        >
+                          Delete
+                        </ConfirmSubmitButton>
+                      </form>
+                    </Td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { assertCan, requireUser } from "@/lib/auth";
-import { createTransaction } from "@/lib/modules/finance";
+import { assertCan, requireDeletePrivilege, requireUser } from "@/lib/auth";
+import { createTransaction, deleteTransaction, getTransaction } from "@/lib/modules/finance";
 import { logActivity } from "@/lib/activity";
 import { str, parseFormNumber, formatCurrency } from "@/lib/utils";
 import type { PaymentMethod, TransactionType } from "@/lib/types";
@@ -50,5 +50,27 @@ export async function createTransactionAction(_prev: FormState, formData: FormDa
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong." };
   }
+  redirect("/finance");
+}
+
+export async function deleteTransactionAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const txn = getTransaction(id);
+  if (!txn) redirect("/finance");
+
+  deleteTransaction(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Finance",
+    recordId: id,
+    recordLabel: txn.code,
+    description: `${txn.type === "REVENUE" ? "Revenue" : "Expense"} transaction ${txn.code} (${formatCurrency(txn.amount)}) was permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/finance");
+  revalidatePath("/dashboard");
   redirect("/finance");
 }
