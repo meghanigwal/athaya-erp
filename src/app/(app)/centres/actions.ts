@@ -2,8 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { assertCan, requireUser } from "@/lib/auth";
-import { createCentre, getCentre, updateCentre, createBatch, getBatch, updateBatch } from "@/lib/modules/centres";
+import { assertCan, requireDeletePrivilege, requireUser } from "@/lib/auth";
+import {
+  createCentre,
+  getCentre,
+  updateCentre,
+  deleteCentre,
+  createBatch,
+  getBatch,
+  updateBatch,
+  deleteBatch,
+} from "@/lib/modules/centres";
 import { logActivity, diffFields } from "@/lib/activity";
 import { str } from "@/lib/utils";
 
@@ -55,6 +64,48 @@ export async function updateCentreAction(id: string, _prev: FormState, formData:
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong." };
   }
+  redirect("/centres");
+}
+
+export async function deleteCentreAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const centre = getCentre(id);
+  if (!centre) redirect("/centres");
+
+  deleteCentre(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Centres",
+    recordId: id,
+    recordLabel: centre.name,
+    description: `Centre ${centre.name} (${centre.code}) was permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/centres");
+  redirect("/centres");
+}
+
+export async function deleteBatchAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const batch = getBatch(id);
+  if (!batch) redirect("/centres");
+
+  deleteBatch(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Centres",
+    recordId: id,
+    recordLabel: batch.name,
+    description: `Batch ${batch.name} (${batch.code}) was permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/centres");
   redirect("/centres");
 }
 

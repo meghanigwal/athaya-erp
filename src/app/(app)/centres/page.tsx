@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { can } from "@/lib/auth";
+import { can, canDeleteRecords } from "@/lib/auth";
 import { listCentres, listBatches, centreStats } from "@/lib/modules/centres";
 import { listCoaches } from "@/lib/modules/coaches";
 import { PageHeader, LinkButton, Card, CardHeader, Table, Th, Td, Badge, EmptyState } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/DeleteButton";
 import { Forbidden } from "@/components/Forbidden";
+import { deleteCentreAction, deleteBatchAction } from "./actions";
 import { Plus } from "lucide-react";
 
 export default async function CentresPage() {
@@ -18,6 +20,7 @@ export default async function CentresPage() {
   const coachMap = new Map(coaches.map((c) => [c.id, c.name]));
   const centreMap = new Map(centres.map((c) => [c.id, c.name]));
   const canAdd = await can("centres", "add");
+  const canDelete = await canDeleteRecords();
 
   return (
     <div>
@@ -71,9 +74,24 @@ export default async function CentresPage() {
                       <Badge value={c.status} />
                     </Td>
                     <Td>
-                      <Link href={`/centres/${c.id}/edit`} className="text-xs font-medium text-brand hover:underline">
-                        Edit
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link href={`/centres/${c.id}/edit`} className="text-xs font-medium text-brand hover:underline">
+                          Edit
+                        </Link>
+                        {canDelete && (
+                          <form action={deleteCentreAction}>
+                            <input type="hidden" name="id" value={c.id} />
+                            <ConfirmSubmitButton
+                              variant="ghost"
+                              size="sm"
+                              className="px-0 py-0"
+                              confirmMessage={`Permanently delete the centre "${c.name}"? Players, coaches and batches linked to it will be unassigned, not deleted. This cannot be undone.`}
+                            >
+                              Delete
+                            </ConfirmSubmitButton>
+                          </form>
+                        )}
+                      </div>
                     </Td>
                   </tr>
                 );
@@ -114,9 +132,24 @@ export default async function CentresPage() {
                     <Badge value={b.status} />
                   </Td>
                   <Td>
-                    <Link href={`/centres/batches/${b.id}/edit`} className="text-xs font-medium text-brand hover:underline">
-                      Edit
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link href={`/centres/batches/${b.id}/edit`} className="text-xs font-medium text-brand hover:underline">
+                        Edit
+                      </Link>
+                      {canDelete && (
+                        <form action={deleteBatchAction}>
+                          <input type="hidden" name="id" value={b.id} />
+                          <ConfirmSubmitButton
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 py-0"
+                            confirmMessage={`Permanently delete the batch "${b.name}"? This cannot be undone.`}
+                          >
+                            Delete
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
+                    </div>
                   </Td>
                 </tr>
               ))}
