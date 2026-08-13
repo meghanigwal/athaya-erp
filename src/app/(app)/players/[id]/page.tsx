@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
-import { can } from "@/lib/auth";
+import { can, canDeleteRecords } from "@/lib/auth";
 import { getPlayer, listPaymentsForPlayer, totalPaidForPlayer } from "@/lib/modules/players";
 import { listActivityLogs } from "@/lib/activity";
 import { Badge, Card, CardHeader, LinkButton, Table, Th, Td, EmptyState } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/DeleteButton";
 import { Forbidden } from "@/components/Forbidden";
 import { formatCurrency, formatDate, formatDateTime, calcAge } from "@/lib/utils";
 import { RecordPaymentForm } from "../RecordPaymentForm";
-import { Pencil } from "lucide-react";
+import { deletePlayerAction } from "../actions";
+import { Pencil, Trash2 } from "lucide-react";
 import type { ActivityLog } from "@/lib/types";
 
 export default async function PlayerProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +20,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
   if (!player) notFound();
 
   const canEdit = await can("players", "edit");
+  const canDelete = await canDeleteRecords();
   const payments = listPaymentsForPlayer(id);
   const totalPaid = totalPaidForPlayer(id);
   const history = listActivityLogs({}, 1000).filter(
@@ -35,10 +38,24 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
             <Badge value={player.payment_status} />
           </div>
         </div>
-        {canEdit && (
-          <LinkButton href={`/players/${player.id}/edit`} variant="secondary">
-            <Pencil className="h-4 w-4" /> Edit
-          </LinkButton>
+        {(canEdit || canDelete) && (
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <LinkButton href={`/players/${player.id}/edit`} variant="secondary">
+                <Pencil className="h-4 w-4" /> Edit
+              </LinkButton>
+            )}
+            {canDelete && (
+              <form action={deletePlayerAction}>
+                <input type="hidden" name="id" value={player.id} />
+                <ConfirmSubmitButton
+                  confirmMessage={`Permanently delete the player "${player.name}"? Their entire payment history will be deleted too. This cannot be undone.`}
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </ConfirmSubmitButton>
+              </form>
+            )}
+          </div>
         )}
       </div>
 
