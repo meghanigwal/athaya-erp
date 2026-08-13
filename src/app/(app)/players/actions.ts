@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { assertCan, requireUser } from "@/lib/auth";
-import { createPlayer, getPlayer, updatePlayer, recordPayment } from "@/lib/modules/players";
+import { assertCan, requireDeletePrivilege, requireUser } from "@/lib/auth";
+import { createPlayer, deletePlayer, getPlayer, updatePlayer, recordPayment } from "@/lib/modules/players";
 import { createTransaction } from "@/lib/modules/finance";
 import { logActivity, diffFields } from "@/lib/activity";
 import { str, parseFormNumber, formatCurrency } from "@/lib/utils";
@@ -89,6 +89,27 @@ export async function updatePlayerAction(id: string, _prev: FormState, formData:
     return { error: err instanceof Error ? err.message : "Something went wrong." };
   }
   redirect(`/players/${id}`);
+}
+
+export async function deletePlayerAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const player = getPlayer(id);
+  if (!player) redirect("/players");
+
+  deletePlayer(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Players",
+    recordId: id,
+    recordLabel: player.name,
+    description: `Player ${player.name} (${player.code}) and their payment history were permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/players");
+  redirect("/players");
 }
 
 export async function recordPaymentAction(_prev: FormState, formData: FormData): Promise<FormState> {
