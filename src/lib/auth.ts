@@ -148,3 +148,17 @@ export async function assertCan(moduleKey: ModuleKey, action: "view" | "add" | "
   const allowed = await can(moduleKey, action);
   if (!allowed) throw new Error("You do not have permission to perform this action.");
 }
+
+/**
+ * Permanently deleting individual records is restricted to Super Admin and Admin accounts only,
+ * regardless of any custom per-module permission settings. Use this for UI visibility checks.
+ */
+export async function canDeleteRecords(): Promise<boolean> {
+  const user = await getCurrentUser();
+  return !!user && (user.role === "SUPER_ADMIN" || user.role === "ADMIN");
+}
+
+/** Server-action guard: throws unless the current user is Super Admin or Admin. */
+export async function requireDeletePrivilege(): Promise<User> {
+  return requireRole("SUPER_ADMIN", "ADMIN");
+}
