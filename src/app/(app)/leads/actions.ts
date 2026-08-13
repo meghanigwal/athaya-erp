@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { assertCan, requireUser } from "@/lib/auth";
-import { createLead, getLead, updateLead } from "@/lib/modules/leads";
+import { assertCan, requireDeletePrivilege, requireUser } from "@/lib/auth";
+import { createLead, deleteLead, getLead, updateLead } from "@/lib/modules/leads";
 import { createPlayer } from "@/lib/modules/players";
 import { logActivity, diffFields } from "@/lib/activity";
 import { str, parseFormNumber } from "@/lib/utils";
@@ -103,6 +103,27 @@ export async function quickStatusAction(formData: FormData) {
   });
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
+}
+
+export async function deleteLeadAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const lead = getLead(id);
+  if (!lead) redirect("/leads");
+
+  deleteLead(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Leads",
+    recordId: id,
+    recordLabel: lead.child_name,
+    description: `Lead ${lead.child_name} (${lead.code}) was permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/leads");
+  redirect("/leads");
 }
 
 export async function convertLeadAction(formData: FormData) {
