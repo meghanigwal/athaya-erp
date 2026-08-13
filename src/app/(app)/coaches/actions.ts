@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { assertCan, requireUser } from "@/lib/auth";
-import { createCoach, getCoach, updateCoach } from "@/lib/modules/coaches";
+import { assertCan, requireDeletePrivilege, requireUser } from "@/lib/auth";
+import { createCoach, deleteCoach, getCoach, updateCoach } from "@/lib/modules/coaches";
 import { logActivity, diffFields } from "@/lib/activity";
 import { str } from "@/lib/utils";
 
@@ -38,6 +38,27 @@ export async function createCoachAction(_prev: FormState, formData: FormData): P
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong." };
   }
+  redirect("/coaches");
+}
+
+export async function deleteCoachAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const user = await requireDeletePrivilege();
+  const coach = getCoach(id);
+  if (!coach) redirect("/coaches");
+
+  deleteCoach(id);
+
+  logActivity({
+    user,
+    action: "Deleted",
+    module: "Coaches",
+    recordId: id,
+    recordLabel: coach.name,
+    description: `Coach ${coach.name} (${coach.code}) was permanently deleted by ${user.name}.`,
+  });
+
+  revalidatePath("/coaches");
   redirect("/coaches");
 }
 
