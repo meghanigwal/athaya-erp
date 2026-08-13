@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
-import { can } from "@/lib/auth";
+import { can, canDeleteRecords } from "@/lib/auth";
 import { getLead } from "@/lib/modules/leads";
 import { Badge, Card, CardHeader, LinkButton, Select, Button } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/DeleteButton";
 import { Forbidden } from "@/components/Forbidden";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { LEAD_STATUSES } from "@/lib/types";
-import { quickStatusAction, convertLeadAction } from "../actions";
-import { Pencil } from "lucide-react";
+import { quickStatusAction, convertLeadAction, deleteLeadAction } from "../actions";
+import { Pencil, Trash2 } from "lucide-react";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const allowed = await can("leads", "view");
@@ -17,6 +18,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   if (!lead) notFound();
 
   const canEdit = await can("leads", "edit");
+  const canDelete = await canDeleteRecords();
 
   return (
     <div>
@@ -29,15 +31,25 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             {lead.conversion_status === "CONVERTED" && <span className="text-xs text-emerald-600">Converted to player</span>}
           </div>
         </div>
-        {canEdit && (
+        {(canEdit || canDelete) && (
           <div className="flex items-center gap-2">
-            <LinkButton href={`/leads/${lead.id}/edit`} variant="secondary">
-              <Pencil className="h-4 w-4" /> Edit
-            </LinkButton>
-            {lead.conversion_status !== "CONVERTED" && (
+            {canEdit && (
+              <LinkButton href={`/leads/${lead.id}/edit`} variant="secondary">
+                <Pencil className="h-4 w-4" /> Edit
+              </LinkButton>
+            )}
+            {canEdit && lead.conversion_status !== "CONVERTED" && (
               <form action={convertLeadAction}>
                 <input type="hidden" name="id" value={lead.id} />
                 <Button type="submit">Convert to Player</Button>
+              </form>
+            )}
+            {canDelete && (
+              <form action={deleteLeadAction}>
+                <input type="hidden" name="id" value={lead.id} />
+                <ConfirmSubmitButton confirmMessage={`Permanently delete the lead "${lead.child_name}"? This cannot be undone.`}>
+                  <Trash2 className="h-4 w-4" /> Delete
+                </ConfirmSubmitButton>
               </form>
             )}
           </div>
