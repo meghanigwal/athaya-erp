@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { can } from "@/lib/auth";
+import { can, canDeleteRecords } from "@/lib/auth";
 import { getCoach, coachStats } from "@/lib/modules/coaches";
 import { getCentre, listBatches } from "@/lib/modules/centres";
 import { listPlayers } from "@/lib/modules/players";
 import { Badge, Card, CardHeader, LinkButton, Table, Th, Td, EmptyState } from "@/components/ui";
+import { ConfirmSubmitButton } from "@/components/DeleteButton";
 import { Forbidden } from "@/components/Forbidden";
 import { formatDate } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { deleteCoachAction } from "../actions";
+import { Pencil, Trash2 } from "lucide-react";
 
 export default async function CoachProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const allowed = await can("coaches", "view");
@@ -18,6 +20,7 @@ export default async function CoachProfilePage({ params }: { params: Promise<{ i
   if (!coach) notFound();
 
   const canEdit = await can("coaches", "edit");
+  const canDelete = await canDeleteRecords();
   const centre = coach.centre_id ? getCentre(coach.centre_id) : undefined;
   const batches = listBatches().filter((b) => b.coach_id === id);
   const players = listPlayers({ coachId: id });
@@ -34,10 +37,22 @@ export default async function CoachProfilePage({ params }: { params: Promise<{ i
             {coach.role && <span className="text-xs text-slate-500">{coach.role}</span>}
           </div>
         </div>
-        {canEdit && (
-          <LinkButton href={`/coaches/${coach.id}/edit`} variant="secondary">
-            <Pencil className="h-4 w-4" /> Edit
-          </LinkButton>
+        {(canEdit || canDelete) && (
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <LinkButton href={`/coaches/${coach.id}/edit`} variant="secondary">
+                <Pencil className="h-4 w-4" /> Edit
+              </LinkButton>
+            )}
+            {canDelete && (
+              <form action={deleteCoachAction}>
+                <input type="hidden" name="id" value={coach.id} />
+                <ConfirmSubmitButton confirmMessage={`Permanently delete the coach "${coach.name}"? This cannot be undone.`}>
+                  <Trash2 className="h-4 w-4" /> Delete
+                </ConfirmSubmitButton>
+              </form>
+            )}
+          </div>
         )}
       </div>
 
