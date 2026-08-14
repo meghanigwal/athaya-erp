@@ -2,10 +2,67 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execSync } from "node:child_process";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "athaya.db");
 const SCHEMA_PATH = path.join(process.cwd(), "src", "lib", "schema.sql");
+
+/** True if `dir` is an actual mount point (different filesystem device than its parent). */
+function isBindMounted(dir: string): boolean {
+  try {
+    const target = fs.statSync(dir);
+    const parent = fs.statSync(path.dirname(dir));
+    return target.dev !== parent.dev;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Safety net against a real incident: on 2026-08-14 the app's container
+ * briefly started before Railway finished attaching the persistent Volume
+ * at DATA_DIR. The app didn't notice, silently created a fresh empty
+ * database on the container's throwaway local disk, and a since-removed
+ * startup script reseeded it with blank default accounts — permanently
+ * overwriting real data once the container (and its throwaway disk)
+ * eventually recycled.
+ *
+ * This check refuses to open the database until DATA_DIR is confirmed to
+ * be a genuine mount point — proof the Volume is actually attached — and
+ * throws (deliberately crashing the process) if that never happens within
+ * 20 seconds, rather than silently continuing on non-persistent storage.
+ * Railway's restart policy will retry the container, and by then the
+ * Volume is essentially always attached. Only enforced when Railway has a
+ * Volume configured for this service; local development has no volume and
+ * is unaffected.
+ */
+function assertPersistentStorageReady(): void {
+  if (!process.env.RAILWAY_VOLUME_MOUNT_PATH) return;
+
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  const maxWaitMs = 20000;
+  const stepMs = 250;
+  let waited = 0;
+  while (!isBindMounted(DATA_DIR)) {
+    if (waited >= maxWaitMs) {
+      throw new Error(
+        `FATAL: persistent-storage safety check failed. Expected the Railway Volume to be mounted at ${DATA_DIR}, ` +
+          `but it was not detected after waiting ${maxWaitMs}ms. Refusing to start on non-persistent storage to avoid ` +
+          `silently losing data — crashing intentionally so Railway retries the deploy.`
+      );
+    }
+    try {
+      execSync(`sleep ${stepMs / 1000}`);
+    } catch {
+      // ignore — just keep polling
+    }
+    waited += stepMs;
+  }
+}
 
 declare global {
   var __athayaDb: DatabaseSync | undefined;
@@ -48,6 +105,7 @@ function wrapStatement(stmt: ReturnType<DatabaseSync["prepare"]>) {
 }
 
 function createConnection(): DatabaseSync {
+  assertPersistentStorageReady();
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
