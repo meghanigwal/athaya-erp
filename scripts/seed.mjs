@@ -18,7 +18,30 @@ const SCHEMA_PATH = path.join(ROOT, "src", "lib", "schema.sql");
 const RESET = process.argv.includes("--reset");
 const ACCOUNTS_ONLY = process.argv.includes("--accounts-only") || process.env.SEED_ACCOUNTS_ONLY === "1";
 
+// Safety net: if Railway has a Volume configured for this service, refuse to
+// touch the database unless DATA_DIR is confirmed to be the actual mounted
+// Volume (a different filesystem device than its parent) — never the
+// container's throwaway local disk. This is the same check used by the app
+// itself (src/lib/db.ts) and exists because seeding on non-persistent
+// storage previously caused real data to be silently wiped. This script is
+// no longer run automatically on boot, but stays guarded in case it's ever
+// invoked manually again.
+function isBindMounted(dir) {
+  try {
+    const target = fs.statSync(dir);
+    const parent = fs.statSync(path.dirname(dir));
+    return target.dev !== parent.dev;
+  } catch {
+    return false;
+  }
+}
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (process.env.RAILWAY_VOLUME_MOUNT_PATH && !isBindMounted(DATA_DIR)) {
+  console.error(
+    `FATAL: expected the Railway Volume to be mounted at ${DATA_DIR}, but it is not. Refusing to seed on non-persistent storage.`
+  );
+  process.exit(1);
+}
 if (RESET) {
   // Remove the main db file AND its WAL/shared-memory sidecar files together —
   // deleting only the main file while stale -wal/-shm files remain (e.g. from
